@@ -24,9 +24,14 @@ func main() {
 	namePtr := flag.String("name", "frontend", "The name for the deployment to get updated")
 
 	flag.Parse()
-	clientset, err := kubernetes.NewForConfig(&rest.Config{})
+	config, err := rest.InClusterConfig()
 	if err != nil {
-		panic("Could not connect to kubernetes")
+		panic("this utility should only be used inside a kubernetes cluster: " + err.Error())
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic("Could not connect to kubernetes: " + err.Error())
 	}
 
 	// webhook setup
@@ -53,6 +58,7 @@ func main() {
 		}
 	})
 
+	slog.Warn("Starting webhook server")
 	err = http.ListenAndServe(":8000", nil)
 	slog.Warn("Error during serve", "error", err)
 }
@@ -60,7 +66,7 @@ func main() {
 func updateDeployment(ctx context.Context, clientset *kubernetes.Clientset, namespace, name string) error {
 	deploymentClient := clientset.AppsV1().Deployments(namespace)
 	data := fmt.Sprintf(`{"spec": {"template": {"metadata": {"annotations": {"kubectl.kubernetes.io/restartedAt": "%s"}}}}}`, time.Now().Format(time.RFC3339))
-	_, err := deploymentClient.Patch(context.TODO(), name, types.StrategicMergePatchType, []byte(data), v1.PatchOptions{})
+	_, err := deploymentClient.Patch(ctx, name, types.StrategicMergePatchType, []byte(data), v1.PatchOptions{})
 
 	return err
 }
