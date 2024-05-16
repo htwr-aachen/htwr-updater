@@ -12,11 +12,11 @@ RUN go mod download
 
 COPY . .
 
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o /htwr-backend main.go
+RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go build -o /htwr-updater main.go
 
 # FROM alpine:latest AS build-release-stage
 FROM --platform=${TARGETPLATFORM:-linux/amd64} alpine:3.19
-LABEL org.opencontainers.image.source=https://github.com/htwr-aachen/htwr-aachen.de-backend
+LABEL org.opencontainers.image.source=https://github.com/htwr-aachen/htwr-updater
 
 
 RUN apk update \
@@ -27,9 +27,9 @@ RUN apk update \
 
 WORKDIR /
 
-COPY --from=build-stage /htwr-backend /htwr-backend
+COPY --from=build-stage /htwr-updater /htwr-updater
 
 EXPOSE 8080
 
-ENTRYPOINT [ "/htwr-backend" ]
+ENTRYPOINT [ "/htwr-updater" ]
 
