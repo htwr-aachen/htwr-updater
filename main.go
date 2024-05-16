@@ -26,7 +26,7 @@ func main() {
 	flag.Parse()
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		panic("this utility should only be used inside a kubernetes cluster: " + err.Error())
+		panic("This utility should only be used inside a kubernetes cluster: " + err.Error())
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
