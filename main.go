@@ -1,0 +1,66 @@
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"flag"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"time"
+
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+)
+
+func main() {
+	// this is a small utility that hooks into a webhook and then updates the htwr deployment on kubernetes
+
+	namespacePtr := flag.String("namespace", "htwr", "The namespace for the deployment to get updated")
+	namePtr := flag.String("name", "frontend", "The name for the deployment to get updated")
+
+	flag.Parse()
+	clientset, err := kubernetes.NewForConfig(&rest.Config{})
+	if err != nil {
+		panic("Could not connect to kubernetes")
+	}
+
+	// webhook setup
+	// secret
+
+	secret := os.Getenv("HTWR_UPDATER_WEBHOOK_SECRET")
+	h := sha256.New()
+	h.Write([]byte(secret))
+	compare := h.Sum(nil)
+
+	http.HandleFunc("/hooks/update", func(w http.ResponseWriter, r *http.Request) {
+		hash := r.Header.Get("X-Hub-Signature-256")
+
+		// !!timing attacks possible but to lazy
+		if hash != fmt.Sprintf("sha256=%s", hex.EncodeToString(compare)) {
+			slog.Error("Somebody gave the wrong secret")
+		}
+
+		// verifyed github
+
+		err := updateDeployment(r.Context(), clientset, *namespacePtr, *namePtr)
+		if err != nil {
+			slog.Error("Could not update deployment", "error", err)
+		}
+	})
+
+	err = http.ListenAndServe(":8000", nil)
+	slog.Warn("Error during serve", "error", err)
+}
+
+func updateDeployment(ctx context.Context, clientset *kubernetes.Clientset, namespace, name string) error {
+	deploymentClient := clientset.AppsV1().Deployments(namespace)
+	data := fmt.Sprintf(`{"spec": {"template": {"metadata": {"annotations": {"kubectl.kubernetes.io/restartedAt": "%s"}}}}}`, time.Now().Format(time.RFC3339))
+	_, err := deploymentClient.Patch(context.TODO(), name, types.StrategicMergePatchType, []byte(data), v1.PatchOptions{})
+
+	return err
+}
