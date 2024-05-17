@@ -22,6 +22,7 @@ func main() {
 
 	namespacePtr := flag.String("namespace", "htwr", "The namespace for the deployment to get updated")
 	namePtr := flag.String("name", "frontend", "The name for the deployment to get updated")
+	portPtr := flag.Int("port", 8000, "The port to host the http webhook & liveliness probes")
 
 	flag.Parse()
 	config, err := rest.InClusterConfig()
@@ -58,8 +59,16 @@ func main() {
 		}
 	})
 
+	// LIVELINESS
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("OK"))
+	})
+	http.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte("OK"))
+	})
+
 	slog.Warn("Starting webhook server")
-	err = http.ListenAndServe(":8000", nil)
+	err = http.ListenAndServe(fmt.Sprintf(":%d", *portPtr), nil)
 	slog.Warn("Error during serve", "error", err)
 }
 
