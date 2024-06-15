@@ -52,7 +52,7 @@ jobs:
       - name: Build & Push
         uses: docker/build-push-action@v5
         with:
-          push: ${{ github.event_name != 'pull_request'}
+          push: ${{ github.event_name != 'pull_request'}}
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
