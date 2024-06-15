@@ -10,13 +10,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Get Next Version
-        id: semver
-        uses: ietf-tools/semver-action@v1
-        with:
-          token: ${{ github.token }}
-          branch: main
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -39,9 +32,9 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=ref,event=tag
-            type=semver,pattern={{version}},value=${{steps.semver.outputs.next}}
-            type=semver,pattern={{major}}.{{minor}},value=${{steps.semver.outputs.next}}
-            type=semver,pattern={{major}},value=${{steps.semver.outputs.next}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
             type=sha
 
       - name: Build & Push
