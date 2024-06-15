@@ -6,6 +6,8 @@ on:
     tags:
       - "v*.*.*"
   pull_request:
+    branches:
+      - main
 
 jobs:
   build-and-push:
@@ -21,9 +23,7 @@ jobs:
           token: ${{ github.token }}
           branch: main
 
-      - # Add support for more platforms with QEMU (optional)
-        # https://github.com/docker/setup-qemu-action
-        name: Set up QEMU
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
@@ -52,7 +52,7 @@ jobs:
       - name: Build & Push
         uses: docker/build-push-action@v5
         with:
-          push: ${{ github.event_name != "pull_request"}}
+          push: ${{ github.event_name != 'pull_request'}
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
