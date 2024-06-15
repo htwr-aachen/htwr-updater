@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/hex"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -16,6 +17,19 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
+
+const SECRET_ENV = "HTWR_UPDATER_WEBHOOK_SECRET"
+
+func VerifyHMAC(secret, hash string, payload []byte) bool {
+	compare := CreateHMAC(secret, payload)
+	return hmac.Equal([]byte(compare), []byte(hash))
+}
+
+func CreateHMAC(secret string, payload []byte) string {
+	hm := hmac.New(sha256.New, []byte(secret))
+	hm.Write(payload)
+	return fmt.Sprintf("sha256=%x", hm.Sum(nil))
+}
 
 func main() {
 	// this is a small utility that hooks into a webhook and then updates the htwr deployment on kubernetes
@@ -38,23 +52,28 @@ func main() {
 	// webhook setup
 	// secret
 
-	secret := os.Getenv("HTWR_UPDATER_WEBHOOK_SECRET")
-	h := sha256.New()
-	h.Write([]byte(secret))
-	compare := h.Sum(nil)
-
 	http.HandleFunc("/hooks/update", func(w http.ResponseWriter, r *http.Request) {
 		hash := r.Header.Get("X-Hub-Signature-256")
 
-		// !!timing attacks possible but to lazy
-		if hash != fmt.Sprintf("sha256=%s", hex.EncodeToString(compare)) {
-			slog.Error("Somebody gave the wrong secret")
+		payload, err := io.ReadAll(r.Body)
+		if err != nil {
+			slog.Error("No payload or could not read it")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte("No payload"))
 			return
 		}
 
-		// verifyed github
+		// verify that the webhook comes from github
+		if VerifyHMAC(os.Getenv(SECRET_ENV), hash, payload) {
+			slog.Error("Somebody gave the wrong secret")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte("Unauthorized"))
+			return
+		}
+
 		slog.Info("Updating deployment", "name", *namePtr, "namespace", *namespacePtr)
-		err := updateDeployment(r.Context(), clientset, *namespacePtr, *namePtr)
+
+		err = updateDeployment(r.Context(), clientset, *namespacePtr, *namePtr)
 		if err != nil {
 			slog.Error("Could not update deployment", "error", err)
 		}
