@@ -52,11 +52,12 @@ func main() {
 		}
 
 		// verifyed github
-
+		slog.Info("Updating deployment", "name", *namePtr, "namespace", *namespacePtr)
 		err := updateDeployment(r.Context(), clientset, *namespacePtr, *namePtr)
 		if err != nil {
 			slog.Error("Could not update deployment", "error", err)
 		}
+		slog.Debug("Successfully updated deployment")
 	})
 
 	// LIVELINESS
