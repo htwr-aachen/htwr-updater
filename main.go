@@ -20,7 +20,7 @@ import (
 
 const SECRET_ENV = "HTWR_UPDATER_WEBHOOK_SECRET"
 
-func VerifyHMAC(secret, hash string, payload []byte) bool {
+func EqualHMAC(secret, hash string, payload []byte) bool {
 	compare := CreateHMAC(secret, payload)
 	return hmac.Equal([]byte(compare), []byte(hash))
 }
@@ -64,7 +64,7 @@ func main() {
 		}
 
 		// verify that the webhook comes from github
-		if VerifyHMAC(os.Getenv(SECRET_ENV), hash, payload) {
+		if !EqualHMAC(os.Getenv(SECRET_ENV), hash, payload) {
 			slog.Error("Somebody gave the wrong secret")
 			w.WriteHeader(http.StatusUnauthorized)
 			_, _ = w.Write([]byte("Unauthorized"))
