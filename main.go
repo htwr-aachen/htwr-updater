@@ -49,6 +49,7 @@ func main() {
 		// !!timing attacks possible but to lazy
 		if hash != fmt.Sprintf("sha256=%s", hex.EncodeToString(compare)) {
 			slog.Error("Somebody gave the wrong secret")
+			return
 		}
 
 		// verifyed github

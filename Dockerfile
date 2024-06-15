@@ -31,5 +31,5 @@ COPY --from=build-stage /htwr-updater /htwr-updater
 
 EXPOSE 8080
 
-ENTRYPOINT [ "/htwr-updater" ]
+CMD ["/htwr-updater"]
 
